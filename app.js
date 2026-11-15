@@ -46,7 +46,7 @@ function select(id){if(queueLocked&&!queue.includes(id)){notice('Unlock your que
 function advance(ended=false){const i=nextIndex(queue.indexOf(current),queue.length,repeat,ended);if(i<0){audio.pause();render();return}setTrack(queue[i]);play()}
 function previous(){if(audio.currentTime>3){audio.currentTime=0;return}const i=queue.indexOf(current);setTrack(queue[Math.max(0,i-1)]);play()}
 document.addEventListener('click',e=>{const b=e.target.closest('[data-action]');if(!b)return;const{id,action}=b.dataset;if(action==='play'||action==='select')select(id);if(action==='like')like(id);if(action==='queue'){if(queueLocked){notice('Unlock your queue to change its order.');return}if(queue.includes(id))notice('Already in your queue. Open the queue to change its order.');else{queue.push(id);notice('Added to your queue.');renderQueue();updatePlayer()}}if((action==='up'||action==='down')&&!queueLocked){const index=queue.indexOf(id);queue=moveItem(queue,index,index+(action==='up'?-1:1));renderQueue();updatePlayer();$('#queue-list').querySelector(`[data-action="${action}"][data-id="${id}"]`)?.focus()}if(action==='remove'&&id!==current&&!queueLocked){queue=queue.filter(x=>x!==id);renderQueue();updatePlayer();notice('Removed from queue.')}});
-function route(){view=location.hash==='#library'?'library':'discover';render()}
+function route(){if(location.hash==='#library')view='library';else if(location.hash==='#discover'||!location.hash)view='discover';render()}
 window.addEventListener('hashchange',route);$('#search').addEventListener('input',render);
 document.querySelectorAll('[data-mood]').forEach(b=>b.onclick=()=>{mood=b.dataset.mood;render()});
 $('#reset-filters').onclick=()=>{mood='all';$('#search').value='';location.hash='discover';view='discover';render()};
