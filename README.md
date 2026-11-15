@@ -4,7 +4,7 @@
 
 [**Open the live app →**](https://dnstroupe.github.io/stillroom/) | [Design case study](https://dnstroupe.github.io/stillroom/case-study.html) | [Editable Figma file](https://www.figma.com/design/w4ichthh1SMuQNj2Mk40c5?node-id=5-11) | [Portfolio](https://dnstroupe.github.io/data-design-portfolio/)
 
-![Stillroom original record sleeves](assets/blue-hour.svg)
+![Stillroom desktop listening experience](docs/stillroom-desktop.jpg)
 
 ## Why this exists
 
