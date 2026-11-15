@@ -28,7 +28,7 @@ A music-player exercise became an original product concept: a finite, mood-led e
 - Editable queue, order lock, named saved sessions, and local-only audio import.
 - Favorites, theme and volume persisted in browser storage with malformed-data recovery.
 - Semantic controls, native modal dialogs, keyboard shortcuts and reduced-motion styles.
-- Editable Figma desktop composition, reusable components, light/dark variables, six mobile states and eleven prototype connections.
+- Editable Figma desktop composition, reusable components, light/dark variables, eight mobile states with connected prototype flows.
 
 ## Run and test
 
