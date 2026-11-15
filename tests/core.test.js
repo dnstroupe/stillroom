@@ -1,0 +1,15 @@
+import test from 'node:test';import assert from 'node:assert/strict';import {clamp,time,nextIndex,shuffled,moveItem,filterTracks,readPreferences} from '../core.js';
+test('end of queue stops without repeat',()=>assert.equal(nextIndex(2,3),-1));
+test('repeat all wraps queue',()=>assert.equal(nextIndex(2,3,'all'),0));
+test('repeat one repeats on natural end but manual next advances',()=>{assert.equal(nextIndex(1,3,'one',true),1);assert.equal(nextIndex(1,3,'one'),2)});
+test('empty queue never selects a track',()=>assert.equal(nextIndex(0,0,'all'),-1));
+test('shuffle preserves current track and unique membership',()=>{const original=['a','b','c','d'];const s=shuffled(original,'c',()=>0);assert.equal(s[0],'c');assert.deepEqual([...s].sort(),original);assert.deepEqual(original,['a','b','c','d'])});
+test('reorder is immutable',()=>{const q=['a','b','c'];assert.deepEqual(moveItem(q,2,0),['c','a','b']);assert.deepEqual(q,['a','b','c'])});
+test('out of bounds reorder leaves membership intact',()=>assert.deepEqual(moveItem(['a','b'],0,-1),['a','b']));
+const tracks=[{id:'a',title:'Blue Hour',artist:'Sessions',genre:'Downtempo',mood:'unwind'},{id:'b',title:'Paper Lanterns',artist:'Sessions',genre:'Jazz',mood:'focus'}];
+test('search combines mood and favorites',()=>{assert.equal(filterTracks(tracks,'  JAZZ ','focus',['b']).length,1);assert.equal(filterTracks(tracks,'jazz','unwind',['b']).length,0)});
+test('empty liked collection remains empty',()=>assert.deepEqual(filterTracks(tracks,'','all',[]),[]));
+test('malformed preferences recover',()=>assert.deepEqual(readPreferences('{bad'),{likes:[],theme:'light',volume:.7}));
+test('preferences reject invalid types and session-only IDs',()=>assert.deepEqual(readPreferences('{"likes":["a",4,"local-123"],"theme":"other","volume":9}'),{likes:['a'],theme:'light',volume:1}));
+test('format invalid audio metadata safely',()=>{assert.equal(time(NaN),'0:00');assert.equal(time(198.9),'3:18');assert.equal(time(-8),'0:00')});
+test('seek clamping bounds invalid or excessive positions',()=>{assert.equal(clamp(Infinity,0,20),0);assert.equal(clamp(45,0,20),20);assert.equal(clamp(-2,0,20),0)});

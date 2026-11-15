@@ -1,0 +1,68 @@
+import {clamp,time,nextIndex,shuffled,moveItem,filterTracks,readPreferences} from './core.js';
+const $=s=>document.querySelector(s);
+const tracks=[
+{id:'blue-hour',title:'Blue Hour',artist:'Stillroom Sessions',genre:'Downtempo',mood:'unwind',duration:87,src:'assets/blue-hour.mp3',art:'assets/blue-hour.svg',note:'Warm keys. A slower pulse.'},
+{id:'paper-lanterns',title:'Paper Lanterns',artist:'Stillroom Sessions',genre:'Ambient jazz',mood:'focus',duration:87,src:'assets/paper-lanterns.mp3',art:'assets/paper-lanterns.svg',note:'A little clarity, softly lit.'},
+{id:'soft-departure',title:'Soft Departure',artist:'Stillroom Sessions',genre:'Electronica',mood:'move',duration:86,src:'assets/soft-departure.mp3',art:'assets/soft-departure.svg',note:'For wherever you go next.'}
+];
+let raw;try{raw=localStorage.getItem('stillroom.v1')}catch{}
+const prefs=readPreferences(raw);let queue=tracks.map(t=>t.id),current=queue[0],view='discover',mood='all',repeat='off',shuffle=false,noticeTimer,playRequest=0;
+const audio=$('#audio');audio.volume=prefs.volume;$('#volume').value=prefs.volume;
+const escape=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const track=id=>tracks.find(t=>t.id===id);
+function save(){try{localStorage.setItem('stillroom.v1',JSON.stringify(prefs))}catch{}}
+function notice(message){$('#notice').textContent=message;clearTimeout(noticeTimer);noticeTimer=setTimeout(()=>$('#notice').textContent='',4500)}
+function applyTheme(){document.body.dataset.theme=prefs.theme;document.querySelectorAll('[data-theme-toggle],#theme').forEach(b=>b.innerHTML=`◐ <span>Switch to ${prefs.theme==='light'?'dark':'light'}</span>`);save()}
+function toggleTheme(){prefs.theme=prefs.theme==='light'?'dark':'light';applyTheme()}
+$('#theme').onclick=toggleTheme;
+const mobile=document.createElement('nav');mobile.className='mobile-tools';mobile.setAttribute('aria-label','Mobile navigation');mobile.innerHTML='<a href="#discover" data-view="discover">Discover</a><a href="#library" data-view="library">Your collection</a><button data-theme-toggle>◐ Switch to dark</button>';$('.topbar').after(mobile);mobile.querySelector('button').onclick=toggleTheme;
+applyTheme();
+function render(){
+ const list=filterTracks(tracks,$('#search').value,mood,view==='library'?prefs.likes:null);
+ $('#discovery').hidden=view!=='discover'||!!$('#search').value.trim();
+ $('#catalog-title').textContent=view==='library'?'The ones you keep.':$('#search').value.trim()?'Find your next feeling.':'Your next little escape.';
+ $('#catalog-kicker').textContent=view==='library'?'YOUR COLLECTION':'PICK A FEELING, FOLLOW IT';
+ $('#result-count').textContent=`${String(list.length).padStart(2,'0')} ${list.length===1?'TRACK':'TRACKS'}`;
+ $('#like-count').textContent=prefs.likes.filter(id=>track(id)).length;
+ document.querySelectorAll('[data-view]').forEach(a=>{a.classList.toggle('active',a.dataset.view===view);a.dataset.view===view?a.setAttribute('aria-current','page'):a.removeAttribute('aria-current')});
+ document.querySelectorAll('[data-mood]').forEach(b=>{b.classList.toggle('active',b.dataset.mood===mood);b.setAttribute('aria-pressed',b.dataset.mood===mood)});
+ $('#tracks').innerHTML=list.map((t,i)=>`<article class="track-card ${t.id===current&&!audio.paused?'playing':''}" data-track="${t.id}"><div class="cover-wrap"><img src="${escape(t.art)}" alt="${escape(t.title)} cover" loading="lazy"><button class="cover-play" data-action="play" data-id="${t.id}" aria-label="${t.id===current&&!audio.paused?'Pause':'Play'} ${escape(t.title)}">${t.id===current&&!audio.paused?'Ⅱ':'▶'}</button></div><div class="track-topline"><h3>${escape(t.title)}</h3><button class="icon-button" data-action="like" data-id="${t.id}" aria-label="${prefs.likes.includes(t.id)?'Unsave':'Save'} ${escape(t.title)}" aria-pressed="${prefs.likes.includes(t.id)}">${prefs.likes.includes(t.id)?'♥':'♡'}</button></div><div class="track-meta"><span>${escape(t.genre)}</span><span>${time(t.duration)}</span></div><div class="track-tags"><span>${escape(t.note||'YOUR AUDIO / THIS SESSION')}</span><button data-action="queue" data-id="${t.id}" aria-label="Add ${escape(t.title)} to queue">+ Queue</button></div></article>`).join('');
+ $('#empty').hidden=!!list.length;
+ $('#empty-title').textContent=$('#search').value?'No tracks found.':view==='library'?'Start with something you love.':'A quiet corner.';
+ $('#empty-description').textContent=$('#search').value?'Try a title, genre, or a different mood.':view==='library'?'Tap a heart to keep a track here. Your collection stays in this browser.':'Try another mood or add your own audio.';
+ updatePlayer();
+}
+function updatePlayer(){const t=track(current);if(!t)return;$('#now-title').textContent=t.title;$('#now-artist').textContent=t.artist;$('#now-art').src=t.art;$('#now-like').textContent=prefs.likes.includes(current)?'♥':'♡';$('#now-like').setAttribute('aria-pressed',prefs.likes.includes(current));$('#now-like').setAttribute('aria-label',`${prefs.likes.includes(current)?'Unsave':'Save'} ${t.title}`);$('#play').textContent=audio.paused?'▶':'Ⅱ';$('#play').setAttribute('aria-label',audio.paused?'Play':'Pause');$('#focus-play').textContent=audio.paused?'▶ Play':'Ⅱ Pause';$('#focus-title').textContent=t.title;$('#focus-art').src=t.art;$('#focus-art').alt=`${t.title} cover`;$('#focus-genre').textContent=`${t.genre} / ${t.local?'Your audio':t.mood}`;$('#duration').textContent=time(Number.isFinite(audio.duration)?audio.duration:t.duration);$('#next').disabled=nextIndex(queue.indexOf(current),queue.length,repeat)<0;}
+function renderQueue(){const at=queue.indexOf(current);$('#queue-list').innerHTML=queue.map((id,i)=>{const t=track(id);return `<li class="queue-row"><img src="${escape(t.art)}" alt=""><button class="queue-title" data-action="select" data-id="${id}"><strong>${escape(t.title)}</strong><small>${i===at?'NOW PLAYING':i<at?'PLAYED':'UP NEXT'} · ${time(t.duration)}</small></button><div class="queue-actions"><button data-action="up" data-id="${id}" class="icon-button" aria-label="Move ${escape(t.title)} up" ${i===0?'disabled':''}>↑</button><button data-action="down" data-id="${id}" class="icon-button" aria-label="Move ${escape(t.title)} down" ${i===queue.length-1?'disabled':''}>↓</button><button data-action="remove" data-id="${id}" class="icon-button" aria-label="Remove ${escape(t.title)} from queue" ${id===current?'disabled':''}>×</button></div></li>`}).join('')}
+function like(id){prefs.likes=prefs.likes.includes(id)?prefs.likes.filter(x=>x!==id):[...prefs.likes,id];save();render();notice(prefs.likes.includes(id)?'Saved to your collection.':'Removed from your collection.')}
+function setTrack(id){const t=track(id);if(!t)return;current=id;if(!queue.includes(id))queue.push(id);playRequest++;audio.src=t.src;audio.load();$('#seek').value=0;$('#elapsed').textContent='0:00';updatePlayer();renderQueue();if('mediaSession'in navigator){navigator.mediaSession.metadata=new MediaMetadata({title:t.title,artist:t.artist,album:'Stillroom Sessions',artwork:[{src:new URL(t.art,location.href).href,type:'image/svg+xml'}]})}}
+async function play(){const request=++playRequest;try{await audio.play();if(request===playRequest)render()}catch(e){if(request!==playRequest||e.name==='AbortError')return;notice('This track could not play. Try again, or add an audio file from your device.');updatePlayer()}}
+function toggle(){audio.paused?play():audio.pause()}
+function select(id){if(current===id){toggle();return}setTrack(id);play()}
+function advance(ended=false){const i=nextIndex(queue.indexOf(current),queue.length,repeat,ended);if(i<0){audio.pause();render();return}setTrack(queue[i]);play()}
+function previous(){if(audio.currentTime>3){audio.currentTime=0;return}const i=queue.indexOf(current);setTrack(queue[Math.max(0,i-1)]);play()}
+document.addEventListener('click',e=>{const b=e.target.closest('[data-action]');if(!b)return;const{id,action}=b.dataset;if(action==='play'||action==='select')select(id);if(action==='like')like(id);if(action==='queue'){if(queue.includes(id))notice('Already in your queue. Open the queue to change its order.');else{queue.push(id);notice('Added to your queue.');renderQueue();updatePlayer()}}if(action==='up'||action==='down'){const index=queue.indexOf(id);queue=moveItem(queue,index,index+(action==='up'?-1:1));renderQueue();updatePlayer();$('#queue-list').querySelector(`[data-action="${action}"][data-id="${id}"]`)?.focus()}if(action==='remove'&&id!==current){queue=queue.filter(x=>x!==id);renderQueue();updatePlayer();notice('Removed from queue.')}});
+function route(){view=location.hash==='#library'?'library':'discover';render()}
+window.addEventListener('hashchange',route);$('#search').addEventListener('input',render);
+document.querySelectorAll('[data-mood]').forEach(b=>b.onclick=()=>{mood=b.dataset.mood;render()});
+$('#reset-filters').onclick=()=>{mood='all';$('#search').value='';location.hash='discover';view='discover';render()};
+$('#session-play').onclick=()=>{queue=tracks.filter(t=>!t.local).map(t=>t.id);setTrack(queue[0]);play();notice('The Stillroom edit is ready. Take your time.')};
+$('#play').onclick=toggle;$('#focus-play').onclick=toggle;$('#next').onclick=()=>advance();$('#previous').onclick=previous;$('#now-like').onclick=()=>like(current);
+$('#shuffle').onclick=()=>{shuffle=!shuffle;queue=shuffle?shuffled(queue,current):tracks.filter(t=>queue.includes(t.id)).map(t=>t.id);$('#shuffle').setAttribute('aria-pressed',shuffle);renderQueue();updatePlayer();notice(shuffle?'Shuffle on. Current track stays.':'Original order restored.')};
+$('#repeat').onclick=()=>{repeat=repeat==='off'?'all':repeat==='all'?'one':'off';$('#repeat').textContent=repeat==='one'?'↻¹':'↻';$('#repeat').setAttribute('aria-label',`Repeat ${repeat}`);$('#repeat').dataset.active=repeat!=='off';updatePlayer();notice(`Repeat ${repeat}.`)};
+$('#seek').oninput=e=>{if(Number.isFinite(audio.duration)){audio.currentTime=clamp(+e.target.value,0,audio.duration);$('#elapsed').textContent=time(audio.currentTime)}};
+$('#volume').oninput=e=>{audio.volume=+e.target.value;audio.muted=false;prefs.volume=audio.volume;save();updateMute()};
+function updateMute(){$('#mute').textContent=audio.muted?'◖×':'◖))';$('#mute').setAttribute('aria-label',audio.muted?'Unmute':'Mute')}
+$('#mute').onclick=()=>{audio.muted=!audio.muted;updateMute()};
+audio.addEventListener('timeupdate',()=>{$('#elapsed').textContent=time(audio.currentTime);$('#seek').value=audio.currentTime;$('#seek').setAttribute('aria-valuetext',`${time(audio.currentTime)} of ${time(audio.duration)}`)});
+audio.addEventListener('loadedmetadata',()=>{$('#seek').max=audio.duration||100;track(current).duration=audio.duration||track(current).duration;updatePlayer()});
+audio.addEventListener('ended',()=>advance(true));audio.addEventListener('play',()=>{updatePlayer();navigator.mediaSession&&(navigator.mediaSession.playbackState='playing')});audio.addEventListener('pause',()=>{render();navigator.mediaSession&&(navigator.mediaSession.playbackState='paused')});
+audio.addEventListener('error',()=>{updatePlayer();notice('Audio unavailable. Check your connection or try adding a local track.')});
+for(const type of ['queue','focus','about']){$(`#${type}-open`).onclick=()=>{if(type==='queue')renderQueue();$(`#${type}-dialog`).showModal()};}
+document.querySelectorAll('[data-close]').forEach(b=>b.onclick=()=>b.closest('dialog').close());
+document.querySelectorAll('dialog').forEach(d=>d.addEventListener('click',e=>{if(e.target===d){const r=d.getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)d.close()}}));
+$('#import-open').onclick=()=>$('#import').click();$('#import').onchange=e=>{let added=0;for(const f of e.target.files){if(!f.type.startsWith('audio/')&&!/\.(mp3|wav|m4a|ogg|flac)$/i.test(f.name))continue;if(f.size>100*1024*1024){notice('Choose audio files smaller than 100 MB.');continue}const id=`local-${crypto.randomUUID()}`;tracks.push({id,title:f.name.replace(/\.[^.]+$/,''),artist:'Your device',genre:'Local audio',mood:'unwind',duration:0,src:URL.createObjectURL(f),art:'assets/local.svg',local:true});queue.push(id);added++}e.target.value='';if(added){mood='all';$('#search').value='';view='discover';location.hash='discover';render();renderQueue();notice(`${added} ${added===1?'track':'tracks'} added for this session. Nothing uploaded.`)}};
+window.addEventListener('beforeunload',()=>tracks.filter(t=>t.local).forEach(t=>URL.revokeObjectURL(t.src)));
+document.addEventListener('keydown',e=>{if(e.target.closest('input,textarea,button,a,[contenteditable=true],dialog'))return;if(e.code==='Space'){e.preventDefault();toggle()}else if((e.code==='ArrowRight'||e.code==='ArrowLeft')&&Number.isFinite(audio.duration)){e.preventDefault();audio.currentTime=clamp(audio.currentTime+(e.code==='ArrowRight'?5:-5),0,audio.duration)}});
+if('mediaSession'in navigator){for(const [name,handler]of Object.entries({play,pause:()=>audio.pause(),previoustrack:previous,nexttrack:()=>advance(),seekbackward:()=>audio.currentTime=Math.max(0,audio.currentTime-5),seekforward:()=>audio.currentTime=Math.min(audio.duration||0,audio.currentTime+5)})){try{navigator.mediaSession.setActionHandler(name,handler)}catch{}}}
+setTrack(current);route();

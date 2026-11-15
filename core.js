@@ -1,0 +1,7 @@
+export const clamp = (n,min,max) => Math.min(max,Math.max(min,Number.isFinite(n)?n:min));
+export const time = n => { n=Math.floor(clamp(n,0,86400)); return `${Math.floor(n/60)}:${String(n%60).padStart(2,'0')}`; };
+export function nextIndex(index,length,repeat='off',ended=false){if(!length)return -1;if(ended&&repeat==='one')return index;return index+1<length?index+1:repeat==='all'?0:-1;}
+export function shuffled(ids,current,random=Math.random){const rest=ids.filter(id=>id!==current);for(let i=rest.length-1;i>0;i--){const j=Math.floor(random()*(i+1));[rest[i],rest[j]]=[rest[j],rest[i]];}return ids.includes(current)?[current,...rest]:rest;}
+export function moveItem(items,from,to){const result=[...items];if(from<0||to<0||from>=items.length||to>=items.length)return result;const [item]=result.splice(from,1);result.splice(to,0,item);return result;}
+export function filterTracks(tracks,query='',mood='all',liked=null){const q=query.trim().toLowerCase();return tracks.filter(t=>(!liked||liked.includes(t.id))&&(mood==='all'||t.mood===mood)&&`${t.title} ${t.artist} ${t.genre}`.toLowerCase().includes(q));}
+export function readPreferences(raw){try{const p=JSON.parse(raw);return {likes:Array.isArray(p?.likes)?p.likes.filter(x=>typeof x==='string'&&!x.startsWith('local-')):[],theme:p?.theme==='dark'?'dark':'light',volume:clamp(typeof p?.volume==='number'?p.volume:.7,0,1)};}catch{return {likes:[],theme:'light',volume:.7};}}

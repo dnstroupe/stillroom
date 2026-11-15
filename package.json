@@ -1,0 +1,1 @@
+{"name":"stillroom","private":true,"version":"1.0.0","type":"module","scripts":{"test":"node --test tests/*.test.js","start":"python3 -m http.server 4173"}}
